@@ -1,0 +1,20 @@
+{
+  "id": "neodex.grattciel",
+  "name": "Gratte-ciel",
+  "version": "1.0.0",
+  "author": "NDesumeur",
+  "description": "Empile les étages d'un gratte-ciel : chaque étage glisse, lâche-le au bon moment. Ce qui dépasse tombe. Monte jusqu'aux étoiles.",
+  "icon": "icon.png",
+  "entry": "index.js",
+  "view": "grattciel",
+  "neobase": ">=4.0.0",
+  "type": "app",
+  "category": "Jeux",
+  "mobile": false,
+  "system": false,
+  "dependencies": {},
+  "sdk": "2.1.0",
+  "permissions": [
+    "storage"
+  ]
+}
