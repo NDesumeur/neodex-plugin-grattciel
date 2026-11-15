@@ -1,9 +1,9 @@
 {
   "id": "neodex.grattciel",
   "name": "Gratte-ciel",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "author": "NDesumeur",
-  "description": "Jeu de rythme : chaque étage glisse au-dessus de la tour, lâche-le d'un clic ou à Espace pour qu'il tombe pile sur le précédent. Ce qui dépasse est coupé et la tour rétrécit ; un étage pile dessus garde sa largeur, et trois parfaits à la suite l'élargissent. Les étages vont de plus en plus vite et le ciel change jusqu'à l'espace : monte le plus haut possible.",
+  "description": "Jeu de rythme : chaque étage glisse au-dessus de la tour, lâche-le d'un clic ou à Espace pour qu'il tombe pile sur le précédent. Ce qui dépasse est coupé et la tour rétrécit ; un étage pile dessus garde sa largeur, et trois parfaits à la suite l'élargissent. Les étages vont de plus en plus vite et le ciel change jusqu'à l'espace : monte le plus haut possible. Étages dessinés (hall, fenêtres allumées, balcons), une note plus haut à chaque parfait de la série, un toit avec antenne pour la tour finie. Souris, clavier ou manette, plein écran, à la taille de la fenêtre.",
   "icon": "icon.png",
   "entry": "index.js",
   "view": "grattciel",

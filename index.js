@@ -1,22 +1,23 @@
 // Gratte-ciel : Empile les étages d'un gratte-ciel : chaque étage glisse, lâche-le au bon moment. Ce qui dépasse tombe. Monte jusqu'aux étoiles.
 // Jeu NeoDex en pixel art dessiné à la main (police bitmap, cadres et boutons en pixels). Il tourne dans le bac à sable de NeoDex.
 const HTML = `<div class="appWrap wide">
-  <div class="agHead"><span class="label">Gratte-ciel</span><span class="hint">Clic ou espace : poser l'étage · P : pause</span></div>
+  <div class="agHead"><span class="label">Gratte-ciel</span><span class="hint">Clic, espace ou A (manette) : poser l'étage · P ou Start : pause</span></div>
   <div class="gMain"><div class="gameBox"><canvas id="gcCanvas" width="216" height="288"></canvas></div>
     <div class="gSide">
       <div class="sysCard"><b>RECORDS</b><div class="gStats" id="gcStats"></div></div>
-      <div class="row"><button class="btn main" id="gcNew">NOUVELLE TOUR</button></div>
-      <div class="hint">Pile dessus : l'étage garde sa largeur. Trois fois pile à la suite : la tour s'élargit.</div>
+      <div class="row"><button class="btn main" id="gcNew">NOUVELLE TOUR</button><button class="btn" id="gcFs">PLEIN ÉCRAN</button></div>
+      <div class="hint">Pile dessus : l'étage garde sa largeur. Trois fois pile à la suite : la tour s'élargit. Chaque parfait de la série sonne une note plus haut. Quand la tour s'arrête, elle reçoit son toit.</div>
     </div></div>
 </div>`;
 const CSS = `.gMain{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
-.gameBox{display:grid;place-items:center;padding:10px;background:#05010b;flex:2;min-width:320px;position:relative}
-.gameBox canvas{width:100%;image-rendering:pixelated;cursor:var(--cp,pointer);touch-action:none}
+.gameBox{display:grid;place-items:center;padding:10px;background:#05010b;flex:0 0 auto;position:relative}
+.gameBox canvas{height:max(300px,min(calc(100vh - 190px),calc((100vw - 140px) * 288 / 216),1100px));width:auto;aspect-ratio:216/288;image-rendering:pixelated;cursor:var(--cp,pointer);touch-action:none}
+.gameBox:fullscreen{padding:0}
+.gameBox:fullscreen canvas{height:min(100vh,calc(100vw * 288 / 216))}
 .gSide{display:flex;flex-direction:column;gap:14px;flex:1;min-width:250px;max-width:420px}
 .gSide .sysCard{display:flex;flex-direction:column}
 .gStats{display:grid;grid-template-columns:1fr auto;gap:4px 14px}
-.gStats b{text-align:right}
-.gameBox canvas{max-width:460px;aspect-ratio:216/288}`;
+.gStats b{text-align:right}`;
 /* ---------- l'habillage pixel art, dessiné à la main : police bitmap (accents compris), cadres, boutons, icônes ----------
    Tout est en pixels pleins, agrandis par 2 sans lissage : aucun dégradé, aucune ombre floue. */
 const PXK = (() => {
@@ -336,7 +337,9 @@ function gcNew() {
 const gcSpeed = () => 1.1 + Math.min(2.2, gc.tower.length / 28);
 function gcSpawn() { const top = gc.tower.at(-1), fromLeft = gc.tower.length % 2 === 0; gc.mov = {x: fromLeft ? -top.w / 2 : GC.W - top.w / 2, w: top.w, dir: fromLeft ? 1 : -1}; }
 let gcac = null;
-function gcBeep(f, d, type = 'square', slide = 0) { try { gcac ??= new AudioContext(); const o = gcac.createOscillator(), g = gcac.createGain(), t = gcac.currentTime; o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + d); g.gain.setValueAtTime(.05, t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(g).connect(gcac.destination); o.start(t); o.stop(t + d + .02); } catch {} }
+let gcBeep = function (f, d, type = 'square', slide = 0) { try { gcac ??= new AudioContext(); const o = gcac.createOscillator(), g = gcac.createGain(), t = gcac.currentTime; o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + d); g.gain.setValueAtTime(.05, t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(g).connect(gcac.destination); o.start(t); o.stop(t + d + .02); } catch {} }
+const GC_SCALE = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23, 24];  // do majeur sur deux octaves
+const gcNote = combo => 392 * 2 ** (GC_SCALE[Math.min(GC_SCALE.length - 1, combo - 1)] / 12);  // 1er parfait : sol, puis une note plus haut à chaque parfait de la série
 function gcDrop() {
   if (gc.mode === 'ready') { gc.mode = 'play'; gcs.games++; saveGames(); return; }
   if (gc.mode === 'pause') { gc.mode = 'play'; return; }
@@ -346,29 +349,51 @@ function gcDrop() {
   if (Math.abs(x - top.x) <= GC.PERFECT) {  // pile dessus
     x = top.x; gc.combo++; gc.perf++; gc.flash = 10; gc.msg = {t: 0, txt: gc.combo >= 3 ? 'PARFAIT ! +' : 'PARFAIT !'};
     if (gc.combo >= 3) { const grow = Math.min(GC.BASE - w, 6); x -= grow / 2; w += grow; }
-    gcBeep(523 * 1.06 ** Math.min(12, gc.combo), .15, 'triangle', 1046 * 1.06 ** Math.min(12, gc.combo));
+    const f = gcNote(gc.combo); gcBeep(f, .14, 'triangle'); setTimeout(() => gcBeep(f * 1.5, .16, 'triangle'), 70);
   } else {
     gc.combo = 0; const l = Math.max(x, top.x), r = Math.min(x + w, top.x + top.w);
     if (r - l <= 0) { gc.debris.push({x, y, w, vy: 0, yy: 0, c: y}); gc.mov = null; gc.mode = 'over'; gc.dead = 0; gcBeep(200, .6, 'sawtooth', 50); const n = gc.tower.length - 1; gc.record = best('grattciel', n); gcs.floors += n; gcs.perfects += gc.perf; saveGames(); gcInfo(); return; }
-    if (x < l) gc.debris.push({x, y, w: l - x, vy: 0, yy: 0, c: y}); if (x + w > r) gc.debris.push({x: r, y, w: x + w - r, vy: 0, yy: 0, c: y});
+    if (x < l) gc.debris.push({x, y, w: l - x, vy: 0, yy: 0, c: y, ox: m.x}); if (x + w > r) gc.debris.push({x: r, y, w: x + w - r, vy: 0, yy: 0, c: y, ox: m.x});
     x = l; w = r - l; gcBeep(330, .08);
   }
-  gc.tower.push({x, w}); gcSpawn();
+  gc.tower.push({x, w, ox: m.x}); gcSpawn();
 }
 function gcUpdate() {
   if (gc.flash) gc.flash--; if (gc.msg && ++gc.msg.t > 50) gc.msg = null;
   for (const d of gc.debris) { d.vy += .25; d.yy += d.vy; } gc.debris = gc.debris.filter(d => d.yy < 400);
-  const want = Math.max(0, (gc.tower.length - 12) * GC.FH); gc.cam += (want - gc.cam) * .1;
+  const want = Math.max(0, (gc.tower.length - (gc.mode === 'over' ? 8 : 12)) * GC.FH); gc.cam += (want - gc.cam) * .1;  // à la fin, la tour descend pour montrer son toit sous le texte
   if (gc.mode === 'over') { gc.dead++; return; }
   if (gc.mode !== 'play' || !gc.mov) return;
   const m = gc.mov, sp = gcSpeed(); m.x += m.dir * sp;
   if (m.x > GC.W - m.w / 3) m.dir = -1; if (m.x < -m.w * 2 / 3) m.dir = 1;
 }
 const gcY = i => GC.GROUND - (i + 1) * GC.FH + Math.round(gc.cam);
-function gcFloor(g, x, y, w, i) {  // un étage : contour, mur coloré, fenêtres (certaines allumées), corniche
-  const [c, d] = GC_HUES[Math.floor(i / 5) % GC_HUES.length]; x = Math.round(x); w = Math.round(w); if (w <= 0) return;
-  px(g, '#08040e', x, y, w, GC.FH); px(g, c, x + 1, y + 1, w - 2, GC.FH - 2); px(g, d, x + 1, y + GC.FH - 3, w - 2, 2);
-  for (let wx = x + 3; wx < x + w - 5; wx += 7) { const lit = ((wx - x) * 7 + i * 13) % 5 < 2; px(g, '#08040e', wx, y + 3, 4, 5); px(g, lit ? '#fff4c0' : '#2a3a5a', wx + 1, y + 4, 2, 3); }
+function gcFloor(g, x, y, w, i, ox = x) {  // un étage : contour, corniche claire, mur à pilastres, fenêtres allumées ou éteintes, balcon un étage sur trois ; ox : où commençait l'étage (les fenêtres ne bougent pas quand on coupe)
+  const [c, d] = GC_HUES[Math.floor(i / 5) % GC_HUES.length]; x = Math.round(x); w = Math.round(w); ox = Math.round(ox); if (w <= 0) return;
+  const r = x + w, clip = (a, b) => [Math.max(a, x + 1), Math.min(b, r - 1)], band = (a, b, yy, h, col) => { const [l, rr] = clip(a, b); if (rr > l) px(g, col, l, yy, rr - l, h); };
+  px(g, '#08040e', x, y, w, GC.FH); px(g, c, x + 1, y + 1, w - 2, GC.FH - 2);
+  px(g, '#ffffff33', x + 1, y + 1, w - 2, 1); px(g, d, x + 1, y + GC.FH - 3, w - 2, 2); px(g, '#08040e55', x + 1, y + GC.FH - 2, w - 2, 1);
+  if (i === 0) {  // le hall : grande porte vitrée sous un auvent
+    const m = Math.round(x + w / 2); band(m - 6, m + 6, y + 2, 1, '#ff6aa8'); band(m - 5, m + 5, y + 3, 7, '#08040e'); band(m - 4, m + 4, y + 4, 6, '#bfeaff'); band(m - 4, m - 1, y + 4, 1, '#ffffff'); band(m, m + 1, y + 4, 6, '#08040e');
+    for (let wx = ox + 4; wx < r; wx += 14) if (Math.abs(wx + 2 - m) > 9) { band(wx, wx + 5, y + 3, 6, '#08040e'); band(wx + 1, wx + 4, y + 4, 4, '#fff4c0'); }
+    return;
+  }
+  for (let wx = ox + 10; wx < r; wx += 14) band(wx, wx + 1, y + 2, GC.FH - 5, d);  // pilastres
+  for (let k = 0, wx = ox + 3; wx < r; wx += 7, k++) {
+    if ((wx - ox) % 14 === 10) continue; const h = (k * 7 + i * 13) % 11, lit = h < 5;
+    band(wx, wx + 4, y + 3, 5, '#08040e');
+    band(wx + 1, wx + 3, y + 4, 3, lit ? '#fff4c0' : '#2a3a5a');
+    if (lit) { band(wx + 1, wx + 2, y + 4, 1, '#ffffff'); if (h === 1) band(wx + 2, wx + 3, y + 4, 3, '#ff8a5a'); if (h === 3) band(wx + 1, wx + 3, y + 6, 1, '#3a9a4a'); }  // rideau, plante
+    else band(wx + 2, wx + 3, y + 4, 1, '#4a6a9a');  // reflet
+  }
+  if (i % 3 === 1) { band(x + 1, r - 1, y + 7, 1, '#e8ecf8'); for (let bx = ox + 2; bx < r; bx += 2) band(bx, bx + 1, y + 8, 1, '#c8cce0'); band(x + 1, r - 1, y + 9, 1, '#a8acc8'); }  // balcon
+}
+function gcRoof(g, x, y, w, t) {  // le toit de la tour finie : parapet, château d'eau, antenne et son feu rouge qui clignote
+  x = Math.round(x); w = Math.round(w); if (w < 4) return; const m = Math.round(x + w / 2);
+  px(g, '#08040e', x - 1, y - 3, w + 2, 3); px(g, '#c8cce0', x, y - 2, w, 1);
+  if (w >= 16) { const tx = x + 3; px(g, '#08040e', tx, y - 11, 9, 8); px(g, '#8a5a3a', tx + 1, y - 10, 7, 6); px(g, '#6a4028', tx + 1, y - 8, 7, 1); px(g, '#08040e', tx + 1, y - 4, 1, 1); px(g, '#08040e', tx + 7, y - 4, 1, 1); px(g, '#08040e', tx, y - 12, 9, 1); }
+  px(g, '#08040e', m, y - 22, 1, 19); px(g, '#a8acc8', m - 2, y - 14, 5, 1); px(g, '#a8acc8', m - 1, y - 18, 3, 1);
+  px(g, Math.floor(t / 20) % 2 ? '#ff4a5a' : '#6a1a2a', m - 1, y - 24, 3, 2);
 }
 function gcDraw() {
   const g = gc.g, {W, H, GROUND} = GC;
@@ -383,16 +408,17 @@ function gcDraw() {
   // le sol et la ville d'en bas (elle descend avec la caméra)
   const gy = GROUND + Math.round(gc.cam);
   if (gy < H + 60) { for (let x = 0; x < W; x += 14) { const h = 16 + (x * 7) % 30; px(g, '#2a2050', x, gy - h, 13, h); for (let wy = gy - h + 3; wy < gy - 2; wy += 5) px(g, '#5a4a8a', x + 3, wy, 2, 2); } px(g, '#2a1a10', 0, gy, W, 60); px(g, '#4fb85a', 0, gy, W, 3); }
-  gc.tower.forEach((b, i) => { const y = gcY(i); if (y > -GC.FH && y < H) gcFloor(g, b.x, y, b.w, i); });
+  gc.tower.forEach((b, i) => { const y = gcY(i); if (y > -GC.FH && y < H) gcFloor(g, b.x, y, b.w, i, b.ox); });
+  if (gc.mode === 'over' && gc.tower.length > 1) { const t = gc.tower.at(-1); gcRoof(g, t.x, gcY(gc.tower.length - 1), t.w, gc.tick); }
   if (gc.flash) { const t = gc.tower.at(-1), y = gcY(gc.tower.length - 1); px(g, '#ffffff', t.x - 2, y - 2, t.w + 4, 1); px(g, '#ffffff', t.x - 2, y + GC.FH + 1, t.w + 4, 1); }
-  for (const d of gc.debris) gcFloor(g, d.x, gcY(d.y) + Math.round(d.yy), d.w, d.c);
-  if (gc.mov && gc.mode !== 'over') gcFloor(g, gc.mov.x, gcY(gc.tower.length), gc.mov.w, gc.tower.length);
+  for (const d of gc.debris) gcFloor(g, d.x, gcY(d.y) + Math.round(d.yy), d.w, d.c, d.ox);
+  if (gc.mov && gc.mode !== 'over') gcFloor(g, gc.mov.x, gcY(gc.tower.length), gc.mov.w, gc.tower.length, gc.mov.x);
   pxFont(g, String(gc.tower.length - 1), W / 2, 22, '#ffffff', 16, 'center');
   if (gc.combo > 1) pxFont(g, 'x' + gc.combo, W - 6, 14, '#ffd84a', 8, 'right');
   if (gc.msg) PXK.fill(g, gc.msg.txt, W / 2, 44 - gc.msg.t / 4, '#ffd84a', PXK.scale(8), 'center');
   if (gc.mode === 'ready') gameText(g, W, [['GRATTE-CIEL', '#5ec8ff', 16], ['Clic ou espace pour poser', '#ffffff'], ['Vise pile au-dessus', '#a8b0d8'], ['Record ' + (games.best.grattciel || 0) + ' étages', '#ffd84a']], 90);
   if (gc.mode === 'pause') gameText(g, W, [['PAUSE', '#ffffff', 12], ['Clic pour reprendre', '#a8b0d8']], 100);
-  if (gc.mode === 'over' && gc.dead > 25) gameText(g, W, [['ÇA S\'ARRÊTE ICI', '#ff4a5a', 12], [(gc.tower.length - 1) + ' étages · ' + gc.perf + ' parfaits', '#ffffff'], [gc.record ? 'NOUVEAU RECORD !' : 'Record ' + (games.best.grattciel || 0), '#ffd84a'], [gc.dead > 40 ? 'Clic pour reconstruire' : '', '#a8b0d8']], 90);
+  if (gc.mode === 'over' && gc.dead > 25) gameText(g, W, [['ÇA S\'ARRÊTE ICI', '#ff4a5a', 12], [(gc.tower.length - 1) + ' étages · ' + gc.perf + ' parfaits', '#ffffff'], [gc.record ? 'NOUVEAU RECORD !' : 'Record ' + (games.best.grattciel || 0), '#ffd84a'], [gc.dead > 40 ? 'Clic pour reconstruire' : '', '#a8b0d8']], 54);
 }
 function gcInfo() {
   $('gcStats').replaceChildren(...[['Plus haute tour', (games.best.grattciel || 0) + ' étages'], ['Tours', gcs.games], ['Étages posés', gcs.floors], ['Parfaits', gcs.perfects]].flatMap(([a, b]) => [el('span', '', a), el('b', '', String(b))]));
@@ -404,15 +430,25 @@ document.addEventListener('keydown', e => {
 });
 $('gcCanvas').onpointerdown = e => { e.preventDefault(); if (gc) gcDrop(); };
 $('gcNew').onclick = () => { gcNew(); $('gcNew').blur(); };
-{  // vérification : pile dessus garde la largeur, décalé de 10 coupe 10 px, à côté = fin
-  const keep = gc, realBest = games.best.grattciel, realStats = {...gcs}; gc = null;
+$('gcFs').onclick = () => { $('gcFs').blur(); try { if (document.fullscreenElement) document.exitFullscreen(); else $('gcCanvas').parentElement.requestFullscreen?.().catch(() => {}); } catch {} };
+{ let prev = {};  // la manette : A, X ou RB pose l'étage, Start met en pause
+  const pad = () => { requestAnimationFrame(pad); if (!view.classList.contains('on') || !gc || !navigator.getGamepads) return; const p = [...navigator.getGamepads()].find(Boolean); if (!p) return;
+    const now = {}, was = prev; for (const b of [0, 2, 5, 9]) now[b] = !!p.buttons[b]?.pressed; prev = now;
+    if ([0, 2, 5].some(b => now[b] && !was[b])) gcDrop();
+    if (now[9] && !was[9]) { if (gc.mode === 'play') gc.mode = 'pause'; else gcDrop(); } };
+  requestAnimationFrame(pad); }
+function gcCheck() {  // vérification : pile dessus garde la largeur, décalé de 10 coupe 10 px, à côté = fin ; les notes des parfaits montent sans redescendre
+  const keep = gc, realBest = games.best.grattciel, realStats = {...gcs}, keepBeep = gcBeep; gc = null; gcBeep = () => {};
   gcNew(); gc.mode = 'play'; const t0 = gc.tower[0]; gc.mov.x = t0.x + 1; gcDrop(); const perfect = gc.tower[1].w === GC.BASE && gc.tower[1].x === t0.x;
   gc.mov.x = gc.tower[1].x + 10; gcDrop(); const cut = gc.tower[2].w === GC.BASE - 10 && gc.debris.length === 1;
   gc.mov.x = 300; gcDrop(); const over = gc.mode === 'over';
-  console.assert(perfect && cut && over, 'grattciel', {perfect, cut, over});
+  const notes = Array.from({length: 20}, (_, k) => gcNote(k + 1)), rising = notes.every((f, k) => !k || (k < GC_SCALE.length ? f > notes[k - 1] : f === notes[k - 1]));
   if (realBest === undefined) delete games.best.grattciel; else games.best.grattciel = realBest; Object.assign(gcs, realStats);
-  gc = keep;
+  gc = keep; gcBeep = keepBeep;
+  const bad = Object.entries({perfect, cut, over, rising}).filter(([, v]) => !v).map(([k]) => k); return bad.length ? bad.join(', ') : 'ok';
 }
+{ const c = gcCheck(); console.assert(c === 'ok', 'grattciel', c); }
+$('gcCanvas').__gc = {st: () => gc, check: gcCheck, drop: gcDrop};
 ctx.onOpen(() => {
   if (!gc || !gc.g) { gcNew(); gc.g = $('gcCanvas').getContext('2d'); }
   gameLoop(gc, 'grattciel', gcUpdate, gcDraw); gcInfo();
