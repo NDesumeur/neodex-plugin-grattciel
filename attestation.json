@@ -1,9 +1,9 @@
 {
   "pluginId": "neodex.grattciel",
   "repo": "NDesumeur/neodex-plugin-grattciel",
-  "version": "1.1.0",
-  "sha256": "44df506eb6260ce2cba653bd96762be777ee9c6f427ec0f20636a9e2fe39b869",
-  "approvedAt": "2026-11-16T04:14:36.431Z",
+  "version": "1.1.1",
+  "sha256": "a4a073848b7bc0c1930bc53336b3dd7333bd858654f52d11495545c3b84d8d31",
+  "approvedAt": "2026-11-16T16:38:48.964Z",
   "neobase": ">=4.0.0",
-  "signature": "CVsgLHlv8VyioqQlrC0WBS7Ls6l0hKD+gV9MEHCR8mfTXjqGC1xN6LPkL1dMLuqVicJVH+05pK9AN22jxZ67Dg=="
+  "signature": "EZcSCHCgxrQhhFt94Z7XtWjUX89KTphHQcBtmpmc6dISVzyq7B0B+UwWBvKLa8VAFTGkreupDLlNkgXv9WSwCQ=="
 }
