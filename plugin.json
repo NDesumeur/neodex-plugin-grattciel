@@ -1,7 +1,7 @@
 {
   "id": "neodex.grattciel",
   "name": "Gratte-ciel",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "author": "NDesumeur",
   "description": "Jeu de rythme : chaque étage glisse au-dessus de la tour, lâche-le d'un clic ou à Espace pour qu'il tombe pile sur le précédent. Ce qui dépasse est coupé et la tour rétrécit ; un étage pile dessus garde sa largeur, et trois parfaits à la suite l'élargissent. Les étages vont de plus en plus vite et le ciel change jusqu'à l'espace : monte le plus haut possible. Étages dessinés (hall, fenêtres allumées, balcons), une note plus haut à chaque parfait de la série, un toit avec antenne pour la tour finie. Souris, clavier ou manette, plein écran, à la taille de la fenêtre.",
   "icon": "icon.png",
@@ -10,7 +10,10 @@
   "neobase": ">=4.0.0",
   "type": "app",
   "category": "Jeux",
-  "compatibility": ["windows", "linux"],
+  "compatibility": [
+    "windows",
+    "linux"
+  ],
   "syncMode": "aucune",
   "syncInfo": "Rien n'est synchronisé : tes records restent sur cet appareil.",
   "mobile": false,
@@ -19,5 +22,47 @@
   "sdk": "2.1.0",
   "permissions": [
     "storage"
+  ],
+  "succes": [
+    {
+      "id": "premier",
+      "nom": "Première pierre",
+      "texte": "Finir une première tour"
+    },
+    {
+      "id": "e20",
+      "nom": "Immeuble",
+      "texte": "Monter une tour de 20 étages"
+    },
+    {
+      "id": "e50",
+      "nom": "Gratte-ciel",
+      "texte": "Monter une tour de 50 étages"
+    },
+    {
+      "id": "e100",
+      "nom": "Au-dessus des nuages",
+      "texte": "Monter une tour de 100 étages",
+      "cache": true
+    },
+    {
+      "id": "pile",
+      "nom": "Pile poil",
+      "texte": "Poser 100 étages pile en tout"
+    },
+    {
+      "id": "mille",
+      "nom": "Bâtisseur",
+      "texte": "Poser 1 000 étages en tout"
+    }
+  ],
+  "records": [
+    {
+      "id": "etages",
+      "nom": "Plus haute tour",
+      "sens": "haut",
+      "format": "nombre",
+      "unite": "étages"
+    }
   ]
 }

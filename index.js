@@ -302,6 +302,9 @@ export default async function (ctx) {
   const saveGames = () => { clearTimeout(gamesTimer); gamesTimer = setTimeout(() => { gamesTimer = null; folder.write('games', games).catch(() => {}); }, 500); };
   const best = (k, v) => { const b = games.best[k]; if (b == null || v > b) { games.best[k] = v; saveGames(); return true; } return false; };
   const gstore = (k, init) => (games[k] ??= init);
+  // les trophées de NeoDex (3.4.8 et plus) : succès et records déclarés dans plugin.json ; sur un NeoDex plus ancien, rien ne se passe
+  const trophy = id => { ctx.games?.unlock(id).catch(() => {}); };
+  const trophyRecord = (id, v) => { if (v != null && Number.isFinite(+v)) ctx.games?.record(id, +v).catch(() => {}); };
 function gameLoop(st, appKey, update, draw) {
   cancelAnimationFrame(st.raf);
   const STEP = 1000 / 60; let acc = 0, last = performance.now();
@@ -421,6 +424,7 @@ function gcDraw() {
   if (gc.mode === 'over' && gc.dead > 25) gameText(g, W, [['ÇA S\'ARRÊTE ICI', '#ff4a5a', 12], [(gc.tower.length - 1) + ' étages · ' + gc.perf + ' parfaits', '#ffffff'], [gc.record ? 'NOUVEAU RECORD !' : 'Record ' + (games.best.grattciel || 0), '#ffd84a'], [gc.dead > 40 ? 'Clic pour reconstruire' : '', '#a8b0d8']], 54);
 }
 function gcInfo() {
+  setTimeout(gcTrophies);
   $('gcStats').replaceChildren(...[['Plus haute tour', (games.best.grattciel || 0) + ' étages'], ['Tours', gcs.games], ['Étages posés', gcs.floors], ['Parfaits', gcs.perfects]].flatMap(([a, b]) => [el('span', '', a), el('b', '', String(b))]));
 }
 document.addEventListener('keydown', e => {
@@ -449,6 +453,13 @@ function gcCheck() {  // vérification : pile dessus garde la largeur, décalé 
 }
 { const c = gcCheck(); console.assert(c === 'ok', 'grattciel', c); }
 $('gcCanvas').__gc = {st: () => gc, check: gcCheck, drop: gcDrop};
+// les trophées, tirés des statistiques et des records gardés (aussi à l'ouverture : ce qui a été fait avant compte)
+function gcTrophies() {
+  const b = games.best.grattciel, sig = [b, gcs.floors, gcs.perfects].join(); if (sig === gcTrophies.sig) return; gcTrophies.sig = sig;
+  trophyRecord('etages', b || null);
+  if (b != null) trophy('premier'); if (b >= 20) trophy('e20'); if (b >= 50) trophy('e50'); if (b >= 100) trophy('e100');
+  if (gcs.perfects >= 100) trophy('pile'); if (gcs.floors >= 1000) trophy('mille');
+}
 ctx.onOpen(() => {
   if (!gc || !gc.g) { gcNew(); gc.g = $('gcCanvas').getContext('2d'); }
   gameLoop(gc, 'grattciel', gcUpdate, gcDraw); gcInfo();
